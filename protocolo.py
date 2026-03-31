@@ -13,3 +13,8 @@ def receber_mensagem(conexao):
         return 
     return data
     
+def conectar_servidor(host, port, tipo = "WORKER"):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    s.sendall(f"TIPO:{tipo}".encode("utf-8"))
+    return s

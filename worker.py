@@ -2,27 +2,34 @@
 
 import socket
 import protocolo as p
-
+import time
 HOST = "127.0.0.1" 
 PORT = 65432
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.connect((HOST, PORT))
-    
-    while True:
-        data = p.receber_mensagem(s)
-        if not data:
-            break
-        conn.sendall(data)
+s = p.conectar_servidor(HOST, PORT)
+while True:
+    data = p.receber_mensagem(s).decode()
+    if not data:
+        s.close()
+        break
+
+    if ("+" in data):
+        nums = data.split("+")
+        result = sum(map(int, nums))
+    elif ("-" in data):
+        nums = data.split("-")
+        result = sum(map(int, nums))
+    elif ("*" in data):
+        nums = data.split("*")
+        result = sum(map(int, nums))
+    elif ("/" in data):
+        nums = data.split("/")
+        result = sum(map(int, nums))
+    else:
+        p.enviar_mensagem(s, "ERRO")
+
+    print(str(result))
+    p.enviar_mensagem(s, str(result))
+    time.sleep(0.5)
 
 
-# if ("+" in data):
-#     nums = data.split("+")
-# elif ("-" in data):
-#     nums = data.split("-")
-# elif ("*" in data):
-#     nums = data.split("*")
-# elif ("/" in data):
-#     nums = data.split("/")
-# else:
-#     p.enviar_mensagem(conn, "ERRO")
