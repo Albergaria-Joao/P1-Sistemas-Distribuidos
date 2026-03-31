@@ -21,28 +21,28 @@ def lidar_conexao(conn, addr, f_in, f_out):
 
             if tipo == "TIPO:WORKER":
                 try:
-                    task = f_in.get(timeout=1)
-                    p.enviar_mensagem(conn, task)
+                    task = f_in.get(timeout=1) # Pega da fila de inputs
+                    p.enviar_mensagem(conn, task) # Envia para o worker
                     time.sleep(0.5)
-                    result = p.receber_mensagem(conn).decode()
+                    result = p.receber_mensagem(conn).decode() # Recebe result
                     if not result:
                         print(f"[DESCONEXÃO] {addr} saiu.")
                         break
 
                     print(f"[RESPOSTA] {result}")
-                    f_out.put(result)
+                    f_out.put(result) # Coloca na fila de output
                 except queue.Empty:
                     break
                     
             else: 
                 try:
-                    data = p.receber_mensagem(conn).decode()
+                    data = p.receber_mensagem(conn).decode() # Pega input do cliente
                     print(f"[RECEBIDO] {data}")
                     if not data:
                         print(f"[DESCONEXÃO] {addr} saiu.")
                         break
-                    f_in.put(data)
-                    result = f_out.get(timeout=1)
+                    f_in.put(data) # Coloca na fila de input
+                    result = f_out.get(timeout=1) # Manda o primeiro resultado da fila para o cliente
                     p.enviar_mensagem(conn, result)
 
                 except queue.Empty:
@@ -57,6 +57,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.listen()
     while True:
         conn, addr = s.accept() # aceita a conexão na porta que está ouvindo. Addr é a porta do cliente (efêmera)
-        thread = threading.Thread(target=lidar_conexao, args=(conn, addr, fila_inputs, fila_outputs))
+        thread = threading.Thread(target=lidar_conexao, args=(conn, addr, fila_inputs, fila_outputs)) # Cria uma thread para cuidar de cada conexão
         thread.start()
         print(f"[SISTEMA] Threads ativas: {threading.active_count() - 1}")
