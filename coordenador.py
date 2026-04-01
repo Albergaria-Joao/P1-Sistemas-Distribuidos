@@ -7,46 +7,64 @@ import time
 HOST = "127.0.0.1"  
 PORT = 65432        # porta que o servidor vai ouvir
 
-fila_inputs = queue.Queue()
-fila_outputs = queue.Queue()
+fila_inputs = queue.Queue() # fila de tarefas
+fila_outputs = queue.Queue() # fila de resultados
 
 def lidar_conexao(conn, addr, f_in, f_out):
     with conn:
-        print(f"Connected by {addr}")
-        tipo = p.receber_mensagem(conn).decode()
-        print(tipo)
+        mensagem_inicial = p.receber_mensagem(conn)
+        if not mensagem_inicial:
+            return
+            
+        tipo = mensagem_inicial.strip()
+        print(f"[HANDSHAKE] {addr} {tipo}")
             
         while True:
-            print("RODANDO WHILE")
-
             if tipo == "TIPO:WORKER":
                 try:
-                    task = f_in.get(timeout=1) # Pega da fila de inputs
-                    p.enviar_mensagem(conn, task) # Envia para o worker
-                    time.sleep(0.5)
-                    result = p.receber_mensagem(conn).decode() # Recebe result
+                    task = f_in.get(timeout=1) # pega da fila de inputs
+                    
+                    p.enviar_mensagem(conn, task)
+                    
+                    result = p.receber_mensagem(conn) 
                     if not result:
-                        print(f"[DESCONEXÃO] {addr} saiu.")
+                        print(f"DESCONEXÃO Worker {addr} caiu")
                         break
-
-                    print(f"[RESPOSTA] {result}")
-                    f_out.put(result) # Coloca na fila de output
-                except queue.Empty:
+                        
+                    print(f"WORKER {addr} Retornou: {result}")
+                    f_out.put(result) # joga na fila de outputs
+                    
+                except queue.Empty: # se a fila estiver vazia
+                    continue 
+                except Exception as e:
+                    print(f"ERRO WORKER {e}")
                     break
                     
-            else: 
+            elif tipo == "TIPO:CLIENTE": 
                 try:
-                    data = p.receber_mensagem(conn).decode() # Pega input do cliente
-                    print(f"[RECEBIDO] {data}")
+                    data = p.receber_mensagem(conn) 
                     if not data:
-                        print(f"[DESCONEXÃO] {addr} saiu.")
+                        print(f"DESCONEXÃO Cliente {addr} desconectou.")
                         break
-                    f_in.put(data) # Coloca na fila de input
-                    result = f_out.get(timeout=1) # Manda o primeiro resultado da fila para o cliente
-                    p.enviar_mensagem(conn, result)
-
-                except queue.Empty:
+                        
+                    print(f"CLIENTE {addr} Solicitou: {data}")
+                    f_in.put(data)
+                    
+                    # Repensar lógica de output único p/ caso tenha vários clientes
+                    while True:
+                        try:
+                            result = f_out.get(timeout=5) 
+                            p.enviar_mensagem(conn, result)
+                            break # Sai do loop de espera do resultado, volta a aguardar novo input do cliente
+                        except queue.Empty:
+                            print(f"CLIENTE {addr} Aguardando...")
+                            
+                except Exception as e:
+                    print(f"ERRO CLIENTE {e}")
                     break
+            else:
+                print(f"ERRO Tipo desconhecido: {tipo}")
+                break
             
             
             
